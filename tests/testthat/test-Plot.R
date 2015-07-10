@@ -146,8 +146,8 @@ test_that("mouse clicking is not error-free", {
   Plot(landscape, new=TRUE, axes=TRUE, gp=gpar(cex=0.5), visualSqueeze=0.7)
   Plot(caribou)
   Plot(mySim$DEM)
-  Plot(get("landscape")) # error # after changes... no error
-  Plot(get("landscape", envir=.GlobalEnv))
+  Plot(get("landscape"), new=TRUE)
+  Plot(get("landscape", envir=.GlobalEnv), new=TRUE)
   do.call("Plot", args=list(landscape)) # error
   clickExtent() # error
 

@@ -563,13 +563,15 @@ setMethod(
 # igraph exports %>% from magrittr
 .parseArgs <- function(y, e, eminus1) {
 
+
   elems <- list()
   i <- 1
+  browser()
   parseTxt <- parse(text = y)[[1]]
   elems[[i]] <- parseTxt
   lastOneDone <- TRUE
 
-  while (length(parse(text = deparse(parseTxt))[[1]]) != 1) {
+  while (length(parse(text = deparse(parseTxt))[[1]]) > 2) {
     lastOneDone <- FALSE
     if (grepl(deparse(parseTxt[[1]]), pattern = "^eval")) {
       callEnv <- tryCatch(
@@ -649,6 +651,53 @@ setMethod(
     i = i + 1
   }
 
+  if (length(parse(text = deparse(parseTxt))[[1]]) == 2) {
+    lastOneDone <- FALSE
+    if (grepl(deparse(parseTxt[[1]]), pattern = "^eval")) {
+      callEnv <- tryCatch(
+        eval(
+          match.call(definition = eval,
+                     call = parseTxt)$envir,
+          envir = eminus1
+        ),
+        error = function(x) {
+          tryCatch(
+            eval(
+              match.call(definition=eval, call=parseTxt)$envir,
+              envir = e
+            ),
+            error = function(x) { .GlobalEnv }
+          )
+        }
+      )
+
+    }
+    if (grepl(deparse(parseTxt[[1]]), pattern = "^get")) {
+      if (is.null(match.call(get, parseTxt)$envir)) {
+        callEnv <- tryCatch(
+          eval(
+            match.call(definition = get,
+                       call = parseTxt)$envir,
+            envir = eminus1
+          ),
+          error = function(x) {
+            tryCatch(
+              eval(
+                match.call(definition=eval, call=parseTxt)$envir,
+                envir = e
+              ),
+              error = function(x) { .GlobalEnv }
+            )
+          }
+        )
+      }
+
+    }
+    parseTxt <- parse(text = deparse(parseTxt[[2]]))[[1]]
+
+
+  }
+
 #   envs <- append(.GlobalEnv, sys.frames())[c(TRUE, sapply(sys.frames(), function(x)
 #     exists(deparse(parseTxt), envir=x, inherits=FALSE)))] %>%
 #     .[[length(.)]]
@@ -665,7 +714,9 @@ setMethod(
     if (!lastOneDone) { elems[[i]] <- parseTxt }
   }
   if (exists("callEnv", inherits = FALSE)) {
-    envs <- callEnv
+    if(!is.null(callEnv)) {
+      envs <- callEnv
+    }
   }
 
   if (!inGlobal) {
@@ -686,7 +737,7 @@ setMethod(
     return(list(objs = paste0(paste0(sapply(rev(elems), deparse), collapse="[["),"]]"),
                 envs = envs))
   }
-  return(list(objs = paste(sapply(rev(elems), deparse), collapse = "$"),
+  return(list(objs = paste(sapply(rev(elems), as.character), collapse = "$"),
               envs = envs))
 
 }
@@ -719,6 +770,7 @@ setMethod(
                          argName = "") {
   scalls <- sys.calls()
   # Extract from the sys.calls only the function "calledFrom"
+
   frameCalledFrom <- which(sapply(scalls, function(x) {
     grepl(x, pattern = paste0("^", calledFrom,"$"))[1]
   }))

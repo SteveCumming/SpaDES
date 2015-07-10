@@ -335,7 +335,6 @@ setMethod(
   signature = c(".spadesPlot"),
   definition = function(sPlot) {
     sgl <- sPlot@spadesGrobList
-
     dimx <- apply(do.call(rbind,
                           sapply(1:length(sgl), function(x) {
                             lapply(sgl[[x]][[1]]@isSpatialObjects, function(z) {
@@ -1235,9 +1234,25 @@ setMethod(
     if (all(sapply(new, function(x) x))) { clearPlot(dev.cur()) }
 
     dotObjs <- list(...)
+    browser()
     # Section 1 # Determine object names that were passed and layer names of each
     plotArgs <- mget(names(formals("Plot")),
                      sys.frame(grep(sys.calls(), pattern = "^Plot")))[-1]
+
+    # does the Plot call occur in a do.call?
+    if(any("do.call"==as.character(
+      sys.call(pmax(1,grep(sys.calls(), pattern = "^Plot")-1))))) {
+
+       doCallArgs <- mget(names(formals("do.call")),
+                  sys.frame(grep(sys.calls(), pattern = "^do.call")))$args
+       namesDoCallArgs <- names(doCallArgs)
+
+       if(!is.null(namesDoCallArgs)) {
+         plotArgs[match(names(doCallArgs), plotArgs)] <- doCallArgs[namesDoCallArgs]
+       }
+    }
+
+
 
     # whichSpadesPlottables <- as.logical(sapply(dotObjs, function(x) is(x, ".spadesPlottables")))
     whichSpadesPlottables <- sapply(dotObjs, function(x) {
@@ -1281,7 +1296,6 @@ setMethod(
     }
 
     # Create a .spadesPlot object from the plotObjs and plotArgs
-
     isSpadesPlot <- sapply(plotObjs, function(x) { is(x, ".spadesPlot") })
     newSpadesPlots <- .makeSpadesPlot(plotObjs, plotArgs, whichSpadesPlottables)
 
