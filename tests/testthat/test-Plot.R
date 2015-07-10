@@ -1,4 +1,4 @@
-test_that("Plot is error-free", {
+test_that("Plot is not error-free", {
   on.exit({dev.off(); if (file.exists("Rplots.pdf")) unlink("Rplots.pdf") })
 
   ras <- raster::raster(xmn=0, xmx=10, ymn=0, ymx=10, vals=1, res=1)
@@ -103,4 +103,39 @@ test_that("Plot is error-free", {
                  "Plot called with 'addTo' argument specified")
   expect_error(Plot(ls()), "Nothing to Plot")
   expect_that(rePlot, testthat::not(throws_error()))
+})
+
+test_that("dev is not error-free", {
+
+  #on.exit({dev.off(); if (file.exists("Rplots.pdf")) unlink("Rplots.pdf") })
+
+  ras <- raster::raster(xmn=0, xmx=10, ymn=0, ymx=10, vals=1, res=1)
+  DEM87654 <- SpaDES::gaussMap(ras, var = 2, speedup=1)
+  names(DEM87654) <- "DEM87654"
+
+#  ftmp <- file.path(tempdir(), "spades_vignetteOutputs")
+#  pdf(ftmp)
+
+  lapply(dev.list(), function(x) if(x!=1) dev.off(x))
+  dev()
+  expect_true(any(dev.list() %in% 2))
+
+  lapply(dev.list(), function(x) if(x!=1) dev.off(x))
+  dev.new()
+  dev()
+  dev(5)
+  expect_true(any(dev.list() %in% c(2,3, 4, 5)))
+  lapply(dev.list(), function(x) if(x!=1) dev.off(x))
+
+})
+
+test_that("mouse clicking is not error-free", {
+  if (interactive()) {
+    clearPlot()
+    ras <- raster::raster(xmn=0, xmx=10, ymn=0, ymx=10, vals=1, res=1)
+    DEM87654 <- SpaDES::gaussMap(ras, var = 2, speedup=1)
+    names(DEM87654) <- "DEM87654"
+    Plot(DEM87654)
+    clickExtent()
+  }
 })
