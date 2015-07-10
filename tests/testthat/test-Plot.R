@@ -130,6 +130,28 @@ test_that("dev is not error-free", {
 })
 
 test_that("mouse clicking is not error-free", {
+  require(igraph)
+  require(SpaDES)
+  filelist <- system.file("maps", package="SpaDES") %>%
+    dir(., full.names=TRUE, pattern= "tif") %>%
+    data.table(files=., functions="rasterToMemory", package="SpaDES") %>%
+    .[-c(2,5),]  # omit forestAge and percentPine for simplicity
+  print(filelist)
+  # Load files to memory (using rasterToMemory), assign to a simList we call mySim
+  mySim <- loadFiles(filelist=filelist)
+  # put into a single stack object in the simulation environment for ease of use below
+  landscape <- stack(mySim$DEM, mySim$forestCover, mySim$habitatQuality)
+  # make a SpatialPoints object
+  caribou <- SpatialPoints(coords=cbind(x=runif(1e2,-50,50), y=runif(1e2,-50,50)))
+  Plot(landscape, new=TRUE, axes=TRUE, gp=gpar(cex=0.5), visualSqueeze=0.7)
+  Plot(caribou)
+  Plot(mySim$DEM)
+  Plot(get("landscape")) # error # after changes... no error
+  Plot(get("landscape", envir=.GlobalEnv))
+  do.call("Plot", args=list(landscape)) # error
+  clickExtent() # error
+
+
   if (interactive()) {
     clearPlot()
     ras <- raster::raster(xmn=0, xmx=10, ymn=0, ymx=10, vals=1, res=1)
