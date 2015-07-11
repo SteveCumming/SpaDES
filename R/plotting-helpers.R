@@ -563,7 +563,6 @@ setMethod(
 # igraph exports %>% from magrittr
 .parseArgs <- function(y, e, eminus1) {
 
-
   elems <- list()
   i <- 1
   parseTxt <- parse(text = y)[[1]]
@@ -613,8 +612,31 @@ setMethod(
         }
       )
     }
+
+    # For "get"
     if (grepl(deparse(parseTxt[[1]]), pattern = "^get")) {
-      parseTxt[[3]] <- eval(parse(text = deparse(
+      if (is.null(match.call(get, parseTxt)$envir)) {
+        callEnv <- tryCatch(
+          eval(
+            match.call(definition = get,
+                       call = parseTxt)$envir,
+            envir = eminus1
+          ),
+          error = function(x) {
+            tryCatch(
+              eval(
+                match.call(definition=eval, call=parseTxt)$envir,
+                envir = e
+              ),
+              error = function(x) { stop("need an environment") }
+            )
+          }
+        )
+      } else {
+        callEnv <- match.call(definition = get,
+                              call = parseTxt)$envir
+      }
+      parseTxt[[2]] <- parseTxt[[3]] <- eval(parse(text = deparse(
         match.call(definition = get,
                    call = parseTxt)$x
       )), envir=eminus1)
@@ -630,6 +652,10 @@ setMethod(
     if (is.character(parseTxt[[3]])) {
       parseTxt[[3]] <- as.name(parseTxt[[3]])
     }
+    if (is.character(parseTxt[[2]])) {
+      parseTxt[[2]] <- as.name(parseTxt[[2]])
+    }
+
     if (is.numeric(parseTxt[[3]])) {
       if (!is.null(names(eval(parseTxt[[2]], envir=e)))) {
         parseTxt[[3]] <- names(eval(parseTxt[[2]], envir=e))[parseTxt[[3]]]
@@ -674,6 +700,8 @@ setMethod(
       )
 
     }
+
+
     if (grepl(deparse(parseTxt[[1]]), pattern = "^get")) {
       if (is.null(match.call(get, parseTxt)$envir)) {
         callEnv <- tryCatch(
@@ -688,13 +716,20 @@ setMethod(
                 match.call(definition=eval, call=parseTxt)$envir,
                 envir = e
               ),
-              error = function(x) { .GlobalEnv }
+              error = function(x) { stop("need an environment") }
             )
           }
         )
+      } else {
+        callEnv <- match.call(definition = get,
+                              call = parseTxt)$envir
       }
 
     }
+    if (is.character(parseTxt[[2]])) {
+      parseTxt[[2]] <- as.name(parseTxt[[2]])
+    }
+
     parseTxt <- parse(text = deparse(parseTxt[[2]]))[[1]]
 
 
