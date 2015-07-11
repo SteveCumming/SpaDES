@@ -145,12 +145,11 @@ test_that("mouse clicking is not error-free", {
   caribou <- SpatialPoints(coords=cbind(x=runif(1e2,-50,50), y=runif(1e2,-50,50)))
   Plot(landscape, new=TRUE, axes=TRUE, gp=gpar(cex=0.5), visualSqueeze=0.7)
   Plot(caribou)
-  Plot(mySim$DEM)
   Plot(get("landscape"), new=TRUE)
+  Plot(mySim$DEM)
   Plot(get("landscape", envir=.GlobalEnv), new=TRUE)
-  do.call("Plot", args=list(landscape)) # error
-  clickExtent() # error
-
+  Plot(caribou, mySim$DEM)
+  do.call("Plot", args=list(landscape, new=TRUE))
 
   if (interactive()) {
     clearPlot()

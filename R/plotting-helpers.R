@@ -566,7 +566,6 @@ setMethod(
 
   elems <- list()
   i <- 1
-  browser()
   parseTxt <- parse(text = y)[[1]]
   elems[[i]] <- parseTxt
   lastOneDone <- TRUE
@@ -615,12 +614,15 @@ setMethod(
       )
     }
     if (grepl(deparse(parseTxt[[1]]), pattern = "^get")) {
-      parseTxt[[3]] <- match.call(definition = get, call = parseTxt)$x
+      parseTxt[[3]] <- eval(parse(text = deparse(
+        match.call(definition = get,
+                   call = parseTxt)$x
+      )), envir=eminus1)
       # if the XYZ of `get(x = XYZ)` is the same as an evaluated version of XYZ
       if (identical(eval(parse(text = deparse(
         match.call(definition = get,
                    call = parseTxt)$x
-      ))),
+      )), envir=eminus1),
       parseTxt[[3]])) {
         lastOneDone = TRUE
       }
@@ -772,16 +774,25 @@ setMethod(
   # Extract from the sys.calls only the function "calledFrom"
 
   frameCalledFrom <- which(sapply(scalls, function(x) {
-    grepl(x, pattern = paste0("^", calledFrom,"$"))[1]
+    grepl(x, pattern = paste0("^", unlist(calledFrom),"$"))[1]
   }))
   e <- sys.frame(frameCalledFrom[1])
   eminus1 <- sys.frame(frameCalledFrom - 1)
 
-  if (nchar(argName) == 0) {
-    callNamedArgs <- as.character(substitute(list(...), env=e))[-1]
+  if(unlist(calledFrom)=="do.call") {
+    doCallArgs <- substitute(args, env=e)
+    callNamedArgs <- as.character(doCallArgs)[-1]
+    callNamedArgs <- (names(eval(doCallArgs, envir = e)) %>%
+      sapply(nchar) == 0) %>%
+      callNamedArgs[.]
+
   } else {
-  #  callNamedArgs <- as.character(substitute(parse(text=argName)))[-1]
-    callNamedArgs <- as.character(substitute(parse(text=sim), env=e))[-1]
+    if (nchar(argName) == 0) {
+      callNamedArgs <- as.character(substitute(list(...), env=e))[-1]
+    } else {
+    #  callNamedArgs <- as.character(substitute(parse(text=argName)))[-1]
+      callNamedArgs <- as.character(substitute(parse(text=sim), env=e))[-1]
+    }
   }
   objs <- lapply(callNamedArgs, .parseArgs, e, eminus1)
   return(objs)

@@ -242,7 +242,6 @@ setMethod(
     checkParams(sim, core, dotParams, modulePath(sim)) # returns invisible TRUE/FALSE
 
     if(length(objects)>0) {
-      browser()
       # find the simInit call that was responsible for this, get the objects
       #  in the environment of the parents of that call, and pass them to new
       #  environment.
