@@ -11,7 +11,8 @@
 #'
 #' @param method Integer. Passed to \code{method} are of  \code{\link[fastshp]{thin}}
 #'
-#' @return An object of the same class as the input \code{spGeom}, but
+#' @return An object of the same class as the input \code{s
+#' pGeom}, but
 #' with thinned points
 #'
 #' @seealso \code{\link[fastshp]{thin}}.
@@ -30,15 +31,75 @@ setMethod(
   "thin",
   signature="SpatialPolygons",
   definition=function(spGeom, tol, method) {
-  spGeom@polygons <- lapply(spGeom@polygons, function(i) {
-    i@Polygons <- lapply(i@Polygons, function(j) {
-      j@coords <- j@coords[fastshp::thin(j@coords[,1],j@coords[,2], method=method, tol=tol),]
-      return(j)
-    })
-    return(i)
-  })
 
-return(spGeom)
+    mat <- lapply(1:length(spGeom@polygons), function(i) {
+      matInner <- lapply(1:length(spGeom@polygons[[i]]@Polygons), function(j) {
+         matInner2 <- cbind(rep(j,NROW(spGeom@polygons[[i]]@Polygons[[j]]@coords)),
+                                spGeom@polygons[[i]]@Polygons[[j]]@coords)
+        return(matInner2)
+      })
+      matInner <- do.call(rbind,matInner)
+      matInner <- cbind(id=rep(i,NROW(matInner)), matInner)
+      return(matInner)
+    }) %>%
+      do.call(rbind, .)
+
+
+
+
+    mat <- cbind(mat[,1],rep(5,NROW(mat)),mat[,2],mat[,3], mat[,4])
+    colnames(mat) <- c("id","type","part","x","y")
+
+    matThin <- thin.shp(mat %>% data.table, max.width=25L, tolerance=100)
+    mat <- cbind(mat, matThin)
+
+    a = mat %>% data.table %>% group_by(id, part)
+    aSum <- a %>% summarise(sumMatThin=sum(matThin))
+    whNotEnough <- which(aSum$sumMatThin==1)
+    aTmp <- a %>% inner_join(aSum[whNotEnough]) %>% group_by(id, part) %>%
+      filter(first(sumMatThin)) %>% mutate(matThin=1)%>% select(-sumMatThin)
+    b <- anti_join(a, aTmp) %>% bind_rows(aTmp)
+
+    traits <- mat %>% data.table %>%
+      group_by(id,part) %>%
+      summarise(len=length(x))
+
+    stopIndex <- cumsum(traits$len)
+    startIndex <- c(1,cumsum(traits$len)+1)
+    startIndex <- startIndex[-length(startIndex)]
+
+#    browser()
+#    for(i in 10217:10220) {
+     for(i in 1:(NROW(traits))) {
+      spGeom@polygons[[traits[i,id]]]@Polygons[[traits[i,part]]]@coords <-
+        b[((startIndex[i]:stopIndex[i]) * b$matThin[startIndex[i]:stopIndex[i]]),] %>%
+        as.matrix
+#      browser(expr=i==10217)
+#      print(i)
+    }
+
+#     spGeom@polygons <- lapply(1:length(spGeom@polygons), function(i) {
+#       spGeom@polygons[[i]]@Polygons <- lapply(1:length(spGeom@polygons[[i]]@Polygons), function(j) {
+#         spGeom@polygons[[i]]@Polygons[[j]]@coords <-
+#                              mat[, c("x","y")]
+#         return(spGeom@polygons[[i]]@Polygons[[j]])
+#
+#       })
+#       return(spGeom@polygons[[i]])
+#     })
+#
+#     spGeom@polygons <- lapply(spGeom@polygons, function(i) {
+#      i@Polygons <- lapply(i@Polygons, function(j) {
+#        j@coords <- j@coords[fastshp::thin(j@coords[,1],j@coords[,2], method=method, tol=tol),]
+#        return(j)
+#      })
+#      return(i)
+#  })
+
+ # matThin <- fastshp::thin(mat[,1],mat[,2], method=2L, tol=1e3, id = TRUE)
+
+
+  return(spGeom)
 })
 
 #' @export
