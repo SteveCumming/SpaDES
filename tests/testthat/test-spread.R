@@ -312,6 +312,24 @@ test_that("spread stopRule does not work correctly", {
 })
 
 
+test_that("directional stuff", {
+
+  require(raster)
+  a <- raster(extent(0,1e2,0,1e2), res = 1)
+  hab <- gaussMap(a,speedup = 1) # if raster is large (>1e6 pixels), use speedup>1
+  names(hab) = "hab"
+  hab2 <- hab>0
+  maxRadius <- 25
+  maxVal <- 50
+  set.seed(53432)
+
+  stopRule2 <- function(landscape) sum(landscape)>maxVal
+  startCells <- as.integer(sample(1:ncell(hab), 2))
+
+  circs <- spread(hab, spreadProb = 1, circle = TRUE, loci = startCells,
+                  mapID = TRUE, circleMaxRadius = maxRadius)
+
+})
 test_that("spread benchmarking", {
 
   skip("This is just benchmarking, not testing")
@@ -465,3 +483,4 @@ test_that("spread benchmarking", {
   )
 
  })
+
