@@ -324,20 +324,38 @@ test_that("directional stuff", {
   set.seed(53432)
 
   stopRule2 <- function(landscape) sum(landscape)>maxVal
-  startCells <- as.integer(sample(1:ncell(hab), 2))
+  startCells <- as.integer(sample(1:ncell(hab), 1))
 
-  circs <- spread(hab, spreadProb = 0.23, loci = startCells,
-                  mapID = TRUE, returnIndices = TRUE,
-                  asymmetry = 20, asymmetryAngle = 270)
-  ci <- raster(hab)
-  ci[] <- 0
-  ci[circs$indices] <- circs$eventID
-  ciCentre <- raster(ci)
-  ciCentre[] <- 0
-  ciCentre[unique(circs$initialLocus)] <- 1
-  Plot(ci, new=T)
-  Plot(ciCentre, cols = c("transparent", "black"), addTo = "ci")
+  N <- 16
+  avgAngles <- numeric(N)
+  lenAngles <- numeric(N)
+  meanAngle <- function(angles)
+    CircStats::deg(atan2(mean(sin(CircStats::rad(angles))),mean(cos(CircStats::rad(angles)))))
+  for(asymAng in (2:N)) {
+    circs <- spread(hab, spreadProb = 0.25, loci = ncell(hab)/2-ncol(hab)/2,
+                    mapID = TRUE, returnIndices = TRUE,
+                    asymmetry = 40, asymmetryAngle = asymAng*20)
+    ci <- raster(hab)
+    ci[] <- 0
+    ci[circs$indices] <- circs$eventID
+    ciCentre <- raster(ci)
+    ciCentre[] <- 0
+    ciCentre[unique(circs$initialLocus)] <- 1
+    Plot(ci, new=T)
+    Plot(ciCentre, cols = c("transparent", "black"), addTo = "ci")
+    Sys.sleep(1)
+    a <- cbind(mapID=circs$eventID, to=circs$indices, xyFromCell(hab, circs$indices))
+    initialLociXY <- cbind(mapID = unique(circs$eventID), xyFromCell(hab, unique(circs$initialLocus)))
+    dirs <- .matchedPointDirection(a, initialLociXY)
+    dirs[,"angles"] <- CircStats::deg(dirs[,"angles"])
+    avgAngles[asymAng] <- tapply(dirs[,"angles"], dirs[, "mapID"], meanAngle) %% 360
+    lenAngles[asymAng] <- tapply(dirs[,"angles"], dirs[, "mapID"], length)
 
+  }
+
+  whBig <- which(lenAngles>50)
+  pred <- (1:N)[whBig]*20
+  expect_true(abs(coef(lm(avgAngles[whBig]~pred))[[2]] - 1) < 0.1)
 
 })
 test_that("spread benchmarking", {

@@ -715,7 +715,6 @@ setMethod(
         } else {
           a <- cbind(mapID=potentials[, 3L], to=potentials[, 2L], xyFromCell(landscape, potentials[, 2L]))
         }
-        #browser()
         d <- .matchedPointDirection(a, initialLociXY)
         #d[,"angles"] <- deg(d[,"angles"])
         newSpreadProbExtremes <- (spreadProb*2)/(asymmetry+1)*c(1,asymmetry)
