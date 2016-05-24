@@ -341,9 +341,11 @@ test_that("directional stuff", {
     ciCentre <- raster(ci)
     ciCentre[] <- 0
     ciCentre[unique(circs$initialLocus)] <- 1
-    Plot(ci, new=T)
-    Plot(ciCentre, cols = c("transparent", "black"), addTo = "ci")
-    Sys.sleep(1)
+    newName <- paste0("ci",asymAng*20)
+    assign(newName, ci)
+    # Plot(get(newName, envir=parent.frame()), new=T)
+    # Plot(ciCentre, cols = c("transparent", "black"), addTo = newName)
+    # Sys.sleep(1)
     a <- cbind(mapID=circs$eventID, to=circs$indices, xyFromCell(hab, circs$indices))
     initialLociXY <- cbind(mapID = unique(circs$eventID), xyFromCell(hab, unique(circs$initialLocus)))
     dirs <- .matchedPointDirection(a, initialLociXY)
