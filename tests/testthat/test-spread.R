@@ -326,8 +326,18 @@ test_that("directional stuff", {
   stopRule2 <- function(landscape) sum(landscape)>maxVal
   startCells <- as.integer(sample(1:ncell(hab), 2))
 
-  circs <- spread(hab, spreadProb = 1, circle = TRUE, loci = startCells,
-                  mapID = TRUE, circleMaxRadius = maxRadius)
+  circs <- spread(hab, spreadProb = 0.23, loci = startCells,
+                  mapID = TRUE, returnIndices = TRUE,
+                  asymmetry = 20, asymmetryAngle = 270)
+  ci <- raster(hab)
+  ci[] <- 0
+  ci[circs$indices] <- circs$eventID
+  ciCentre <- raster(ci)
+  ciCentre[] <- 0
+  ciCentre[unique(circs$initialLocus)] <- 1
+  Plot(ci, new=T)
+  Plot(ciCentre, cols = c("transparent", "black"), addTo = "ci")
+
 
 })
 test_that("spread benchmarking", {

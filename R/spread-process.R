@@ -155,7 +155,7 @@ if (getRversion() >= "3.1.0") {
 #'                      meaning the spread is starting from \code{loci}. See Details.
 #'
 #' @param circle        Logical. If TRUE, then outward spread will be by equidistant rings,
-#'                      rather than solely by adjacent cells (via \code{direction} arg.). Default
+#'                      rather than solely by adjacent cells (via \code{directions} arg.). Default
 #'                      is FALSE. Using \code{circle=TRUE} can be dramatically slower for large
 #'                      problems. Note, this should usually be used with spreadProb = 1.
 #'
@@ -240,7 +240,8 @@ setGeneric("spread", function(landscape, loci = NA_real_,
                               spreadProbLater = NA_real_, spreadState = NA,
                               circle = FALSE, circleMaxRadius = NA_real_,
                               stopRule = NA, stopRuleBehavior = "includeRing",
-                              allowOverlap = FALSE, direction = FALSE,
+                              allowOverlap = FALSE,
+                              asymmetry = NA_real_, asymmetryAngle = NA_real_,
                               ...) {
   standardGeneric("spread")
 })
@@ -467,7 +468,8 @@ setMethod(
                         lowMemory, returnIndices, mapID,
                         plot.it, spreadProbLater, spreadState,
                         circle, circleMaxRadius, stopRule, stopRuleBehavior,
-                        allowOverlap, direction,
+                        allowOverlap, asymmetry,
+                        asymmetryAngle,
                         ...) {
 
     if(!any(stopRuleBehavior %in% c("includePixel","excludePixel","includeRing","excludeRing")))
@@ -519,14 +521,12 @@ setMethod(
     n <- 1L
 
     # circle needs directions to be 8
-    if(!missing(circle)) {
-      if(circle) {
-        directions = 8L
-        initialLociXY <- cbind(mapID = seq_along(initialLoci), xyFromCell(landscape, initialLoci))
-        mapID <- TRUE
-        if(allowOverlap) {
-          spreads <- cbind(spreads, dists = NA_real_)
-        }
+    if(circle | !is.na(asymmetry)) {
+      if(circle) directions <- 8L # only required for circle
+      initialLociXY <- cbind(mapID = seq_along(initialLoci), xyFromCell(landscape, initialLoci))
+      mapID <- TRUE
+      if(allowOverlap) {
+        spreads <- cbind(spreads, dists = NA_real_)
       }
     }
 
@@ -709,18 +709,18 @@ setMethod(
           spreadProbs <- spreadProb[potentials[, 2L]]
         }
       }
-      if(direction) {
-        asymmetry <- 6
-        heading <- 45
+      if(!is.na(asymmetry)) {
         if(!allowOverlap){
           a <- cbind(mapID=spreads[potentials[, 1L]], to=potentials[, 2L], xyFromCell(landscape, potentials[, 2L]))
         } else {
           a <- cbind(mapID=potentials[, 3L], to=potentials[, 2L], xyFromCell(landscape, potentials[, 2L]))
         }
-        d <- .matchedPointDistance(a, initialLociXY, direction = direction)
-        d[,"angles"] <- deg(d[,"angles"])
+        #browser()
+        d <- .matchedPointDirection(a, initialLociXY)
+        #d[,"angles"] <- deg(d[,"angles"])
         newSpreadProbExtremes <- (spreadProb*2)/(asymmetry+1)*c(1,asymmetry)
-        angleQuality <- ((cos(rad(d[,"angles"] - heading))+1)/2)
+        angleQuality <- ((cos(d[,"angles"] - rad(asymmetryAngle))+1)/2)
+        #angleQuality <- ((cos(rad(d[,"angles"] - asymmetryAngle))+1)/2)
         spreadProbs <- newSpreadProbExtremes[1]+(angleQuality *
                                                    diff(newSpreadProbExtremes))
         spreadProbs <- spreadProbs - diff(c(spreadProb,mean(spreadProbs)))
@@ -744,7 +744,7 @@ setMethod(
             } else {
               a <- cbind(mapID=potentials[, 3L], to=potentials[, 2L], xyFromCell(landscape, potentials[, 2L]))
             }
-            d <- .matchedPointDistance(a, initialLociXY, direction = direction)
+            d <- .matchedPointDistance(a, initialLociXY, asymmetry = asymmetry)
             cMR <- n
             if(!any(is.na(circleMaxRadius))){
               if(any(circleMaxRadius<=n)){ # don't bother proceeding if circleMaxRadius is larger than current iteration
@@ -1062,7 +1062,7 @@ setMethod(
 )
 
 
-.matchedPointDistance <- function(a, b, direction = FALSE) {
+.matchedPointDistance <- function(a, b, asymmetry = NA_real_) {
     ids <- unique(b[,"mapID"])
     orig <- order(a[,"mapID",drop=FALSE],a[,"to",drop=FALSE])
     a <- a[orig,,drop=FALSE]
@@ -1070,7 +1070,7 @@ setMethod(
       m1 <- a[a[,"mapID"]==i,c("x","y"), drop = FALSE]
       m2 <- b[b[,"mapID"]==i,c("x","y"), drop = FALSE]
       dists <- sqrt((m1[,"x"] - m2[,"x"])^2 + (m1[,"y"] - m2[,"y"])^2)
-      if(direction) {
+      if(!is.na(asymmetry)) {
         rise <- m1[,"y"]-m2[,"y"]
         run <- m1[,"x"]-m2[,"x"]
         angles <- atan2(rise,run)
@@ -1078,8 +1078,23 @@ setMethod(
       }
       dists
     })
-    if(direction)
+    if(!is.na(asymmetry))
       cbind(do.call(rbind, dists),a)[order(orig),,drop=FALSE]
     else
       cbind(dists = unlist(dists),a)[order(orig),,drop=FALSE]
     }
+
+
+.matchedPointDirection <- function(a, b) {
+  ids <- unique(b[,"mapID"])
+  orig <- order(a[,"mapID",drop=FALSE],a[,"to",drop=FALSE])
+  a <- a[orig,,drop=FALSE]
+  angles <- lapply(ids, function(i){
+    m1 <- a[a[,"mapID"]==i,c("x","y"), drop = FALSE]
+    m2 <- b[b[,"mapID"]==i,c("x","y"), drop = FALSE]
+    rise <- m1[,"y"]-m2[,"y"]
+    run <- m1[,"x"]-m2[,"x"]
+    pi/2 - atan2(rise,run) # Convert to geographic 0 = North
+  })
+  cbind(angles = unlist(angles),a)[order(orig),,drop=FALSE]
+}
